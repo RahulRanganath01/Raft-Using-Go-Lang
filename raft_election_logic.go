@@ -103,24 +103,28 @@ func (this *RaftNode) startElection() {
 
 				//-------------------------------------------------------------------------------------------/
 				if reply.Term > this.currentTerm {
-					this.currentTerm = reply.Term
-					this.state = "Follower"
-					this.votedFor = -1
-					this.write_log("State changed from Candidate to Follower with term=%d", this.currentTerm)
+					// TODO
+					this.write_log("Candidate has older term, switched to Follower")
+					this.becomeFollower(reply.Term)
 					return
 				} else if reply.Term == this.currentTerm {
+					// TODO
 					if reply.VoteGranted {
 						votesReceived += 1
-						if votesReceived > len(this.peersIds)/2 {
+						if votesReceived > (len(this.peersIds)+1)/2 {
+							this.write_log("Candidate %d has won the election by majority", this.id)
 							this.startLeader()
+							return
 						}
 					}
-					//-------------------------------------------------------------------------------------------/
+
 				}
 				//-------------------------------------------------------------------------------------------/
+
 			}
 		}(peerId)
 	}
+
 	// Run another election timer, in case this election is not successful.
 	go this.startElectionTimer()
 }
@@ -128,20 +132,13 @@ func (this *RaftNode) startElection() {
 // becomeFollower sets a node to be a follower and resets its state.
 func (this *RaftNode) becomeFollower(term int) {
 	this.write_log("became Follower with term=%d; log=%v", term, this.log)
-
+	this.state = "Follower"
+	this.votedFor = -1
+	this.currentTerm = term
+	this.lastElectionTimerStartedTime = time.Now()
+	go this.startElectionTimer()
 	// IMPLEMENT becomeFollower; do you need to start a goroutine here, maybe?
-	//-------------------------------------------------------------------------------------------/
+	// -------------------------------------------------------------------------------------------/
 	// TODO
 	//-------------------------------------------------------------------------------------------/
-	this.mu.Lock()
-	defer this.mu.Unlock()
-
-	// Update the term if the new term is greater than the current term.
-	if term > this.currentTerm {
-		this.currentTerm = term
-		this.votedFor = -1 // Reset votedFor field.
-		this.state = "Follower"
-		this.lastElectionTimerStartedTime = time.Now()
-		this.write_log("Updated currentTerm=%d; reset votedFor and election timer", term)
-	}
 }
